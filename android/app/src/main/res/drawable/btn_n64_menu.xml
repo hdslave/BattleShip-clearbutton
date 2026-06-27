@@ -1,4 +1,4 @@
-<!-- Menu (hamburger) — neutral gray with three baked-in white bars. -->
+<!-- Menu (hamburger) touch target; intentionally fully transparent. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:aapt="http://schemas.android.com/aapt"
         android:width="100dp" android:height="100dp"
@@ -9,21 +9,21 @@
             <gradient android:type="linear"
                       android:startX="50" android:startY="3"
                       android:endX="50"   android:endY="97">
-                <item android:offset="0.00" android:color="#FF7A7A7A"/>
-                <item android:offset="1.00" android:color="#FF555555"/>
+                <item android:offset="0.00" android:color="#007A7A7A"/>
+                <item android:offset="1.00" android:color="#00555555"/>
             </gradient>
         </aapt:attr>
     </path>
 
     <path android:pathData="M50,50 m-48,0 a48,48 0 1,0 96,0 a48,48 0 1,0 -96,0 M50,50 m-46,0 a46,46 0 1,1 92,0 a46,46 0 1,1 -92,0"
-          android:fillColor="#FF2A2A2A"
+          android:fillColor="#002A2A2A"
           android:fillType="evenOdd"/>
 
     <!-- Three horizontal bars. -->
-    <path android:fillColor="#FFFFFFFF"
+    <path android:fillColor="#00FFFFFF"
           android:pathData="M25,33 h50 v6 h-50 z"/>
-    <path android:fillColor="#FFFFFFFF"
+    <path android:fillColor="#00FFFFFF"
           android:pathData="M25,47 h50 v6 h-50 z"/>
-    <path android:fillColor="#FFFFFFFF"
+    <path android:fillColor="#00FFFFFF"
           android:pathData="M25,61 h50 v6 h-50 z"/>
 </vector>
