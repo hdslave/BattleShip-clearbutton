@@ -1204,27 +1204,44 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     /**
      * This method is called by SDL using JNI.
      */
+    /** Rate-limit the getDisplayDPI fallback log so a persistent null path
+     *  can't spam logcat every frame. */
+    private static int sDisplayDPIFallbacks = 0;
+
     public static DisplayMetrics getDisplayDPI() {
-        // Cold-start race guard (fixes the intermittent Android "false start").
-        // The SDL render thread's first ImGui frame runs
-        //   ImGui_ImplSDL2_UpdateMonitors -> SDL_GetDisplayDPI
-        //   -> Android_JNI_GetDisplayDPI -> CallStaticObjectMethod(getDisplayDPI)
-        //   -> GetObjectClass(<result>)
-        // SDL.initialize() nulls mContext on every onCreate (setContext(null)),
-        // and in the shared-process / singleInstance cold-start the render
-        // thread's first frame can land in that window. Returning null (or
-        // letting getResources() throw) makes SDL's native side call
-        // GetObjectClass(null) -> CheckJNI abort on debuggable builds, or a raw
-        // SIGSEGV on retail builds -> the app dies back to the launcher ~10% of
-        // cold starts. Hand back default metrics instead; ImGui re-queries the
-        // real values on the next UpdateMonitors once the context is settled.
+        // Cold-start race guard (the intermittent Android "false start").
+        // SDL's Android_JNI_GetDisplayDPI does:
+        //   jobj = CallStaticObjectMethod(getDisplayDPI);  GetObjectClass(jobj);
+        // so if this method ever returns null, SDL calls GetObjectClass(null)
+        // -> CheckJNI abort (debuggable) or SIGSEGV (retail) -> the app dies
+        // back to the launcher on a cold start. So this method MUST NOT return
+        // null and MUST NOT throw, no matter how broken the Activity context is
+        // on the render thread's first frame. Guard every level, catch
+        // Throwable, and log (rate-limited) exactly which path fell back so the
+        // real trigger is visible in logcat.
+        String why = null;
         try {
             Context c = getContext();
-            if (c != null) {
-                return c.getResources().getDisplayMetrics();
+            if (c == null) {
+                why = "context null";
+            } else {
+                android.content.res.Resources r = c.getResources();
+                if (r == null) {
+                    why = "resources null";
+                } else {
+                    DisplayMetrics m = r.getDisplayMetrics();
+                    if (m != null) {
+                        return m;
+                    }
+                    why = "metrics null";
+                }
             }
-        } catch (Exception e) {
-            Log.w(TAG, "getDisplayDPI: context not ready (" + e + "), using defaults");
+        } catch (Throwable t) {
+            why = "threw " + t;
+        }
+        if (sDisplayDPIFallbacks < 30) {
+            sDisplayDPIFallbacks++;
+            Log.w(TAG, "getDisplayDPI fallback (" + why + ") -> default metrics");
         }
         DisplayMetrics dm = new DisplayMetrics();
         dm.setToDefaults();
