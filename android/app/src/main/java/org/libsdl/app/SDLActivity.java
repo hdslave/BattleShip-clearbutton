@@ -1205,7 +1205,30 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * This method is called by SDL using JNI.
      */
     public static DisplayMetrics getDisplayDPI() {
-        return getContext().getResources().getDisplayMetrics();
+        // Cold-start race guard (fixes the intermittent Android "false start").
+        // The SDL render thread's first ImGui frame runs
+        //   ImGui_ImplSDL2_UpdateMonitors -> SDL_GetDisplayDPI
+        //   -> Android_JNI_GetDisplayDPI -> CallStaticObjectMethod(getDisplayDPI)
+        //   -> GetObjectClass(<result>)
+        // SDL.initialize() nulls mContext on every onCreate (setContext(null)),
+        // and in the shared-process / singleInstance cold-start the render
+        // thread's first frame can land in that window. Returning null (or
+        // letting getResources() throw) makes SDL's native side call
+        // GetObjectClass(null) -> CheckJNI abort on debuggable builds, or a raw
+        // SIGSEGV on retail builds -> the app dies back to the launcher ~10% of
+        // cold starts. Hand back default metrics instead; ImGui re-queries the
+        // real values on the next UpdateMonitors once the context is settled.
+        try {
+            Context c = getContext();
+            if (c != null) {
+                return c.getResources().getDisplayMetrics();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "getDisplayDPI: context not ready (" + e + "), using defaults");
+        }
+        DisplayMetrics dm = new DisplayMetrics();
+        dm.setToDefaults();
+        return dm;
     }
 
     /**
